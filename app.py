@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 
 # Configuración de la página y paleta corporativa (Estética Minimalista de Papel)
@@ -61,7 +60,6 @@ df = load_data()
 
 if df.empty:
     st.warning("⚠️ No se detectaron datos en tu Google Sheets o falta configurar el ID de la hoja en el código.")
-    st.info("💡 Asegúrate de poner tu Sheet ID real en la variable `sheet_id` dentro del código de Python.")
 else:
     # --- 2. FILTROS EN LA BARRA LATERAL ---
     st.sidebar.header("Filtros de Período")
@@ -79,9 +77,9 @@ else:
     
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown(f'<div class="kpi-card"><p class="kpi-title">📥 Ingresos Quincenales</p><p class="kpi-value">${total_ingresos:,.2f} </p></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="kpi-card"><p class="kpi-title">📥 Ingresos Quincenales</p><p class="kpi-value">${total_ingresos:,.2f}</p></div>', unsafe_allow_html=True)
     with col2:
-        st.markdown(f'<div class="kpi-card"><p class="kpi-title">📤 Egresos Quincenales</p><p class="kpi-value">${total_egresos:,.2f} </p></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="kpi-card"><p class="kpi-title">📤 Egresos Quincenales</p><p class="kpi-value">${total_egresos:,.2f}</p></div>', unsafe_allow_html=True)
     with col3:
         st.markdown(f'<div class="kpi-card-main"><p class="kpi-title" style="color:#0E3846 !important;">💡 Flujo Neto</p><p class="kpi-value">${flujo_neto:,.2f}</p></div>', unsafe_allow_html=True)
 
@@ -96,13 +94,8 @@ else:
     ]
 
     presupuestos_base = {
-        "Casa": 15500, 
-        "Personales": 5800, 
-        "Préstamos y Tarjetas": 7000,
-        "Auto y transporte": 1500, 
-        "Educación y Deporte": 900, 
-        "Extras": 3800, 
-        "Ahorros": 2500
+        "Casa": 15500, "Personales": 5800, "Préstamos y Tarjetas": 7000,
+        "Auto y transporte": 1500, "Educación y Deporte": 900, "Extras": 3800, "Ahorros": 2500
     }
 
     gastos_reales = df_q[df_q['Tipo'] == 'Egreso'].groupby('Categoría')['Monto'].sum().to_dict()
@@ -115,59 +108,84 @@ else:
         
         with cols[i % 2]:
             st.markdown(f"**{cat}** (Gastado: ${real:,.2f} / Límite: ${presupuesto:,.2f})")
-            
             if porcentaje >= 1.0:
                 st.error(f"🚨 ¡Límite superado! ({porcentaje*100:.1f}%)")
             elif porcentaje >= 0.8:
                 st.warning(f"⚠️ Alerta de gasto cercano al límite ({porcentaje*100:.1f}%)")
             else:
                 st.success(f"✅ Gasto saludable ({porcentaje*100:.1f}%)")
-                
             st.progress(min(porcentaje, 1.0))
             st.markdown("---")
 
-    # --- 5. GRÁFICOS ANALÍTICOS (Ajustados con la paleta) ---
+    # --- 5. GRÁFICOS ANALÍTICOS (ESTÉTICA MINIMALISTA TIPO PAPEL) ---
     st.subheader("📈 Análisis Gráfico")
     g_col1, g_col2 = st.columns(2)
 
+    df_egresos = df_q[df_q['Tipo'] == 'Egreso']
+    
     with g_col1:
-        st.markdown("**Distribución de Egresos**")
-        df_egresos = df_q[df_q['Tipo'] == 'Egreso']
+        st.markdown("**Distribución de Egresos (Estilo Anillo Limpio)**")
         if not df_egresos.empty:
-            # Gráfico de Dona con colores corporativos (#0E3846, #93CBA8, #E4EFE7, #5A6B6B)
-            fig_pie = px.pie(
-                df_egresos, names='Categoría', values='Monto', hole=0.5,
-                color_discrete_sequence=['#93CBA8', '#E4EFE7', '#5A6B6B', '#0E3846']
-            )
+            df_g_pie = df_egresos.groupby('Categoría')['Monto'].sum().reset_index()
+            
+            # Gráfico de Anillo personalizado con Plotly Graph Objects (Sin fondos ni ruido visual)
+            fig_pie = go.Figure(data=[go.Pie(
+                labels=df_g_pie['Categoría'],
+                values=df_g_pie['Monto'],
+                hole=0.65,
+                marker=dict(colors=['#93CBA8', '#E4EFE7', '#5A6B6B', '#0E3846', '#F8F9FA']),
+                textinfo='label+percent',
+                textfont=dict(color='#F8F9FA', size=12)
+            )])
             fig_pie.update_layout(
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#F8F9FA')
+                showlegend=False,
+                margin=dict(l=20, r=20, t=20, b=20),
+                height=350
             )
             st.plotly_chart(fig_pie, use_container_width=True)
         else:
             st.info("No hay egresos registrados en esta quincena.")
 
     with g_col2:
-        st.markdown("**Presupuesto vs Real (Comparativa)**")
-        comparativa_data = []
-        for cat in categorias_oficiales:
-            comparativa_data.append({"Categoría": cat, "Tipo": "Real", "Monto": gastos_reales.get(cat, 0)})
-            comparativa_data.append({"Categoría": cat, "Tipo": "Presupuesto", "Monto": presupuestos_base.get(cat, 0)})
+        st.markdown("**Presupuesto vs Real (Barras Minimalistas)**")
+        # Gráfico de barras agrupadas con líneas horizontales limpias (Referencia de barras estilo papel)
+        fig_bar = go.Figure()
         
-        df_comp = pd.DataFrame(comparativa_data)
+        fig_bar.add_trace(go.Bar(
+            name='Real',
+            x=categorias_oficiales,
+            y=[gastos_reales.get(cat, 0) for cat in categorias_oficiales],
+            marker_color='#93CBA8',
+            marker_line_width=0
+        ))
         
-        # Gráfico de barras ajustado a la paleta corporativa
-        fig_bar = px.bar(
-            df_comp, x='Categoría', y='Monto', color='Tipo', barmode='group',
-            color_discrete_map={'Real': '#93CBA8', 'Presupuesto': '#5A6B6B'}
-        )
+        fig_bar.add_trace(go.Bar(
+            name='Presupuesto',
+            x=categorias_oficiales,
+            y=[presupuestos_base.get(cat, 0) for cat in categorias_oficiales],
+            marker_color='#5A6B6B',
+            marker_line_width=0
+        ))
+        
         fig_bar.update_layout(
+            barmode='group',
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             font=dict(color='#F8F9FA'),
-            yaxis=dict(showgrid=True, gridcolor='#5A6B6B', zeroline=False),
-            xaxis=dict(showgrid=False, zeroline=False)
+            yaxis=dict(
+                showgrid=True, 
+                gridcolor='rgba(90, 107, 107, 0.4)', # Líneas horizontales finas y discretas
+                zeroline=False
+            ),
+            xaxis=dict(
+                showgrid=False, 
+                zeroline=False
+            ),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            margin=dict(l=20, r=20, t=20, b=20),
+            height=350
         )
         st.plotly_chart(fig_bar, use_container_width=True)
 
